@@ -43,7 +43,7 @@ def main():
             moments = cv.moments(c)
             huMoments = cv.HuMoments(moments)
             #predictedLabel = classifier.predict([list(moments.values())])
-            predictedLabel = classifier.predict(flatten(huMoments))
+            predictedLabel = classifier.predict([flatten(huMoments)])
             print(flatten(huMoments))
 
         key = cv.waitKey(30)
