@@ -2,9 +2,9 @@ import cv2 as cv
 
 
 def main():
-    circleToCompare = getContoursByShape('./tp1/circle6.png', 100)
-    squareToCompare = getContoursByShape('./tp1/square3.png', 100)
-    triangleToCompare = getContoursByShape('./tp1/triangle5.png', 127)
+    circleToCompare = getContoursByShape('./circle6.png', 100)
+    squareToCompare = getContoursByShape('./square3.png', 100)
+    triangleToCompare = getContoursByShape('./triangle5.png', 127)
 
     webcam = cv.VideoCapture(0)
     cv.namedWindow('Binary')
@@ -12,6 +12,7 @@ def main():
 
     while True:
         # 1 - Get original image
+        #originalImage = cv.imread("./templateimg4.png")
         ret, originalImage = webcam.read()
         # cv.imshow('Original image', originalImage)
 
@@ -29,10 +30,11 @@ def main():
 
         # 4 - Get contours
         contours, hierarchy = cv.findContours(denoisedImage, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
-
+        
         # 5 - Filter contours
         contours = [c for c in contours if cv.contourArea(c) > 500]
-
+        contours.pop(0)
+        #3cv.drawContours(image=originalImage, contours=contours, contourIdx=-1, color=(0, 255, 0), thickness=3)
         for c in contours:
             if cv.matchShapes(squareToCompare, c, cv.CONTOURS_MATCH_I2, 0) < 0.03:
                 cv.drawContours(image=originalImage, contours=c, contourIdx=-1, color=(0, 255, 0), thickness=3)
