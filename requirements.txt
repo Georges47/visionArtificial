@@ -1,2 +1,6 @@
 numpy==1.23.1
 opencv-contrib-python==4.5.5.64
+Tree==0.2.4
+joblib==1.1.0
+scikit-learn==1.1.2
+matplotlib==3.5.3
