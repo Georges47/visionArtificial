@@ -1,83 +1,74 @@
-from joblib import dump, load
 import cv2 as cv
-import numpy as np
-
-# Loads the decision tree model
+from joblib import load
+from math import copysign, log10
 
 
 def main():
-    classifier = load('./model.joblib')
+    classifier = load('tp2/model.joblib')
+
+    window_name = 'Values'
+    cv.namedWindow(window_name)
+    cv.createTrackbar('Binary', window_name, 0, 255, (lambda a: None))
+    cv.createTrackbar('Denoise', window_name, 0, 255, (lambda a: None))
 
     webcam = cv.VideoCapture(0)
-    cv.namedWindow('Binary')
-    cv.createTrackbar('Trackbar', 'Binary', 0, 255, (lambda a: None))
     while True:
+        binary_threshold = int(cv.getTrackbarPos('Binary', window_name) / 2) * 2 + 3
+        denoise_radius = int(cv.getTrackbarPos('Denoise', window_name) / 2) * 2 + 3
 
         # 1 - Get original image
-        originalImage = cv.imread('../tp1/templateimg4.png')
-        #ret, originalImage = webcam.read()
-        cv.imshow('Original image', originalImage)
+        ret, original_image = webcam.read()
 
         # 2 - Get binary image
-        binaryValue = cv.getTrackbarPos('Trackbar', 'Binary')
-        binaryImage = getBinaryImage(originalImage, binaryValue)
-        cv.imshow('Binary', binaryImage)
+        gray_image = cv.cvtColor(original_image, cv.COLOR_RGB2GRAY)
+        ret2, binary_image = cv.threshold(gray_image, binary_threshold, 255, cv.THRESH_BINARY)
 
         # 3 - Remove noise
-        kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE, (3, 3))  # kernel = structural element
-        opening = cv.morphologyEx(binaryImage, cv.MORPH_OPEN, kernel)
+        kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE, (denoise_radius, denoise_radius))
+        opening = cv.morphologyEx(binary_image, cv.MORPH_OPEN, kernel)
         closing = cv.morphologyEx(opening, cv.MORPH_CLOSE, kernel)
-        denoisedImage = closing
-        debug = originalImage
-        cv.imshow("debug", denoisedImage)
+        denoised_image = closing
+
         # 4 - Get contours
-        contours, hierarchy = cv.findContours(denoisedImage, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
+        contours, _ = cv.findContours(denoised_image, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
+
         # 5 - Filter contours
-        contours = [c for c in contours if cv.contourArea(c) > 2000]  # 2000 is an arbitrary number
-        contours.pop(0)  # Remove the contour of the image
+        contours = [c for c in contours if 5000 < cv.contourArea(c) < 20000]
 
-        cv.drawContours(image=debug, contours=contours, contourIdx=-1, color=(255, 0, 255), thickness=3)
-        #cv.imshow("debug", debug)
+        if len(contours) > 0:
+            for c in contours:
+                moments = cv.moments(c)
+                hu_moments = cv.HuMoments(moments)
+                for i in range(len(hu_moments)):
+                    if hu_moments[i] != 0:
+                        hu_moments[i] = -1 * copysign(1.0, hu_moments[i]) * log10(abs(hu_moments[i]))
+                predicted_tag = classifier.predict(hu_moments.reshape(-1, 7))
 
-        for c in contours:
-            moments = cv.moments(c)
-            huMoments = cv.HuMoments(moments)
-            #predictedLabel = classifier.predict([list(moments.values())])
-            predictedLabel = classifier.predict([flatten(huMoments)])
-            print(flatten(huMoments))
+                label = None
+                color = (0, 0, 0)
+                if predicted_tag == 0:
+                    color = (255, 0, 0)
+                    label = 'Square'
+                elif predicted_tag == 1:
+                    color = (255, 255, 0)
+                    label = 'Star'
+                elif predicted_tag == 2:
+                    color = (255, 0, 255)
+                    label = 'Triangle'
+                if label is not None:
+                    cv.drawContours(original_image, [c], -1, color, 2)
+                    x, y, w, h = cv.boundingRect(c)
+                    cv.putText(original_image, label, (x, y), cv.FONT_HERSHEY_COMPLEX, 2, (255, 255, 255), 1,
+                               cv.LINE_AA)
 
-        key = cv.waitKey(30)
+        cv.imshow('Values', denoised_image)
+        cv.imshow('Original image', original_image)
+
+        key = cv.waitKey(1)
         if key == 27:
             break
 
-def flatten(_list):
-    return list(np.concatenate(_list).flat)
-
-def getBinaryImage(image, value):
-    grayImage = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
-    ret1, thresh = cv.threshold(grayImage, value, 255, cv.THRESH_BINARY)
-    return thresh
-
-def getContoursByShape(imageRoute, threshBottom):
-    shape = cv.imread(imageRoute)
-    grayShape = cv.cvtColor(shape, cv.COLOR_BGR2GRAY)
-    ret, shapeThresh = cv.threshold(grayShape, threshBottom, 255, cv.THRESH_BINARY_INV)
-    shapeContours, hierarchy = cv.findContours(shapeThresh, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
-    cv.drawContours(image=shape, contours=shapeContours, contourIdx=-1, color=(255, 255, 0), thickness=3)
-    return shapeContours[0]
-
-
-def calculate_hu_moments(grayscale_image):
-    """
-    :param grayscale_image: A grayscale image from which the hu moments will be calculated
-    :return: The hu moments of the given image
-    """
-    _, binary_image = cv.threshold(grayscale_image, 128, 255, cv.THRESH_BINARY)
-    moments = cv.moments(binary_image)
-    return cv.HuMoments(moments)
-
-
+    webcam.release()
 
 
 main()
-cv.destroyAllWindows()
