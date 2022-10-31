@@ -13,8 +13,8 @@ def main():
 
     webcam = cv.VideoCapture(0)
     while True:
-        binary_threshold = int(cv.getTrackbarPos('Binary', window_name) / 2) * 2 + 3
-        denoise_radius = int(cv.getTrackbarPos('Denoise', window_name) / 2) * 2 + 3
+        binary_threshold = int(cv.getTrackbarPos('Binary', window_name) / 2) * 2 + 1
+        denoise_radius = int(cv.getTrackbarPos('Denoise', window_name) / 2) * 2 + 1
 
         # 1 - Get original image
         ret, original_image = webcam.read()
